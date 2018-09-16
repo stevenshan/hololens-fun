@@ -12,13 +12,22 @@ using System.Xml.Linq;
 using System.Net.WebSockets;
 using System.Text;
 using System.Threading;
+using System.Net.Http;
+
+public class Translated
+{
+    public string type { get; set; }
+    public string recognition { get; set; }
+    public string translation { get; set; }
+}
 
 public class Translator : MonoBehaviour
 {
     public static Translator instance;
 
     // Public fields accessible in the Unity Editor
-    public string apiKey = "955f6747399a477e8f25c0fc52a2a1d6";
+    private string apiKey = "955f6747399a477e8f25c0fc52a2a1d6";
+    private string hostServer = "http://requestbin.stevenshan.com/1kty6ju1";
 
     private ClientWebSocket client;
     private bool ready = false;
@@ -29,7 +38,6 @@ public class Translator : MonoBehaviour
         instance = this;
         string from = "en-US";
         string to = "it-IT";
-        string features = "partial";
         string voice = "it-IT-Elsa";
         string api = "1.0";
         string host = "wss://dev.microsofttranslator.com";
@@ -38,7 +46,6 @@ public class Translator : MonoBehaviour
             "?from=" + from +
             "&to=" + to +
             "&api-version=" + api +
-            "&features=" + features +
             "&voice=" + voice;
 
         Debug.Log("starting web socket");
@@ -78,13 +85,39 @@ public class Translator : MonoBehaviour
                     break;
                 case WebSocketMessageType.Text:
                     Debug.Log("Received text.");
-                    Debug.Log(Encoding.UTF8.GetString(inbuf).TrimEnd('\0'));
+                    Translated translated = JsonConvert.DeserializeObject<Translated>(Encoding.UTF8.GetString(inbuf));
+                    if (translated.type == "final")
+                    {
+                        StartCoroutine("coordinate", translated.recognition);
+                    }
                     break;
                 case WebSocketMessageType.Binary:
                     Debug.Log("Received binary data: " + result.Count + " bytes.");
                     break;
             }
             reading = false;
+        }
+    }
+
+    IEnumerator coordinate(string sentence)
+    {
+        WWWForm form = new WWWForm();
+        form.AddField("text", sentence);
+        using (UnityWebRequest unityWebRequest = UnityWebRequest.Post(hostServer, form))
+        {
+            yield return unityWebRequest.SendWebRequest();
+
+            long responseCode = unityWebRequest.responseCode;
+
+            if (unityWebRequest.isNetworkError || unityWebRequest.isHttpError)
+            {
+                Debug.Log("HTTP request error.");
+            }
+            else
+            {
+                string response = unityWebRequest.downloadHandler.text;
+                Debug.Log("Got response from coordination server: " + response);
+            }
         }
     }
 
