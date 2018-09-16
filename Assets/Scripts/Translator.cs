@@ -13,6 +13,7 @@ using System.Net.WebSockets;
 using System.Text;
 using System.Threading;
 using System.Net.Http;
+using UnityEngine.UI;
 
 public class Translated
 {
@@ -33,6 +34,14 @@ public class Translator : MonoBehaviour
     private bool ready = false;
     private bool reading = false;
 
+    public Text DescriptionText;
+
+    private void print(string mesg)
+    {
+        Debug.Log(mesg);
+        DescriptionText.text = mesg;
+    }
+
     async void Start()
     {
         instance = this;
@@ -48,18 +57,21 @@ public class Translator : MonoBehaviour
             "&api-version=" + api +
             "&voice=" + voice;
 
-        Debug.Log("starting web socket");
+        print("starting web socket");
 
         client = new ClientWebSocket();
         client.Options.SetRequestHeader("Ocp-Apim-Subscription-Key", apiKey);
 
+        print("connecting...");
         await client.ConnectAsync(new Uri(uri), CancellationToken.None);
-        Debug.Log("connected to socket");
+        print("connected to socket");
 
         var header = WavFile.GetWaveHeader(0);
         var wavHeaderBuffer = new ArraySegment<byte>(header);
         send(wavHeaderBuffer);
         ready = true;
+
+        print("ready to send data");
     }
 
     private async void send(ArraySegment<byte> buff)
